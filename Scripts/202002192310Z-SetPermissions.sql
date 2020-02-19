@@ -1,0 +1,55 @@
+DO
+$do$
+BEGIN
+	IF NOT EXISTS (
+		SELECT	*
+		FROM	pg_roles
+		WHERE	rolname = '$DatabaseRole$') THEN
+
+	CREATE ROLE $DatabaseRole$ WITH
+		NOLOGIN
+		NOSUPERUSER
+		INHERIT
+		NOCREATEDB
+		NOCREATEROLE
+		NOREPLICATION;
+	END IF;
+
+	GRANT CONNECT, TEMPORARY ON DATABASE $DatabaseName$ TO $DatabaseRole$;
+	REVOKE ALL ON DATABASE $DatabaseName$ FROM PUBLIC;
+	GRANT USAGE ON SCHEMA $DatabaseRole$ TO $DatabaseRole$;
+	GRANT INSERT, SELECT, UPDATE, DELETE ON ALL TABLES IN SCHEMA $DatabaseRole$ TO $DatabaseRole$;
+	GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA $DatabaseRole$ TO $DatabaseRole$;
+
+	ALTER DEFAULT PRIVILEGES IN SCHEMA $DatabaseRole$
+		GRANT INSERT, SELECT, UPDATE, DELETE ON TABLES TO $DatabaseRole$;
+
+	ALTER DEFAULT PRIVILEGES IN SCHEMA $DatabaseRole$
+		GRANT SELECT, USAGE ON SEQUENCES TO $DatabaseRole$;
+
+	ALTER DEFAULT PRIVILEGES IN SCHEMA $DatabaseRole$
+		GRANT EXECUTE ON FUNCTIONS TO $DatabaseRole$;
+
+	ALTER DEFAULT PRIVILEGES IN SCHEMA $DatabaseRole$
+		GRANT USAGE ON TYPES TO $DatabaseRole$;
+
+	IF NOT EXISTS (
+		SELECT	*
+		FROM	pg_user
+		WHERE	usename = '$DatabaseUserName$') THEN
+
+		CREATE USER $DatabaseUserName$ WITH
+			LOGIN PASSWORD '$DatabaseUserPassword$'
+			NOSUPERUSER
+			INHERIT
+			CREATEDB
+			NOCREATEROLE
+			NOREPLICATION;
+
+		GRANT $DatabaseRole$ TO $DatabaseUserName$;
+
+	END IF;
+
+	ALTER DATABASE $DatabaseName$ SET search_path = "$user", $DatabaseRole$, public;
+END
+$do$;
